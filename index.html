@@ -3,221 +3,99 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPSUK 運行管理 Ver3</title>
+<title>SPSUK 車両運行</title>
 <style>
-body{font-family:sans-serif;margin:0;padding:12px;background:#e6f2f8;}
-h1{text-align:center;color:#003366;}
-.card{background:white;padding:15px;margin-bottom:15px;border-radius:15px;box-shadow:0 3px 8px rgba(0,0,0,0.1);}
-label{font-weight:bold;}
-select,input{width:100%;padding:10px;margin:5px 0;font-size:16px;border-radius:8px;border:1px solid #ccc;}
-button{width:100%;padding:12px;font-size:18px;border:none;border-radius:10px;margin-top:8px;}
-.start{background:#0077cc;color:white;}
-.end{background:#003366;color:white;}
-.admin{background:#555;color:white;}
-.small{font-size:14px;color:gray;}
-.passengerBox{max-height:120px;overflow-y:auto;border:1px solid #ccc;padding:5px;border-radius:8px;}
-.groupBtn{width:32%;padding:8px;margin:2px;font-size:14px;}
+body{font-family:sans-serif;margin:0;background:#eaf4fb;}
+header{background:#b3d9f7;padding:15px;text-align:center;font-size:20px;font-weight:bold;}
+.container{padding:15px;}
+select,input,button{width:100%;padding:12px;margin:5px 0;font-size:16px;}
+button{background:#6bbcf5;border:none;color:white;font-weight:bold;border-radius:8px;}
+.passenger-box{border:1px solid #ccc;background:white;padding:10px;margin-top:10px;max-height:180px;overflow:auto;}
+label{display:block;margin:3px 0;}
 </style>
 </head>
 <body>
+<header>SPSUK 車両運行管理</header>
+<div class="container">
 
-<h1>SPSUK 運行管理</h1>
-
-<div class="card">
-
-<label>車両</label>
-<select id="vehicle">
-<option>黒VOXY</option>
-<option>銀VOXY</option>
-<option>ノア</option>
-<option>スペード</option>
-<option>ミラ①</option>
-<option>ミラ②</option>
-<option>アイシス</option>
-</select>
-
-<label>運転者</label>
+<select id="vehicle"></select>
 <select id="driver"></select>
 
-<label>所属（運行区分）</label>
-<select id="category">
-<option>児童</option>
-<option>就労</option>
-<option>職員</option>
+<input type="number" id="startMeter" placeholder="出発メーター">
+<input type="number" id="endMeter" placeholder="終了メーター">
+
+<select id="groupSelect" onchange="renderPassengers()">
+<option value="児童">児童</option>
+<option value="就労">就労</option>
+<option value="職員">職員</option>
 </select>
 
-<label>同乗者（最大7名）</label>
-<div>
-<button class="groupBtn" onclick="showGroup('児童')">児童</button>
-<button class="groupBtn" onclick="showGroup('就労')">就労</button>
-<button class="groupBtn" onclick="showGroup('職員')">職員</button>
-</div>
-<div class="passengerBox" id="passengerBox"></div>
+<div class="passenger-box" id="passengerList"></div>
 
-<label>行先</label>
-<select id="destination">
-<option>市役所</option>
-<option>病院</option>
-<option>送迎</option>
-<option>買い物</option>
-<option>その他</option>
-</select>
-<input type="text" id="otherDest" placeholder="その他入力" style="display:none;">
+<button onclick="saveRecord()">保存</button>
 
-<button class="start" onclick="startTrip()">出発</button>
-<button class="end" onclick="endTrip()">到着</button>
-
-</div>
-
-<div class="card">
-<h3>外出中</h3>
-<div id="status">待機中</div>
-</div>
-
-<div class="card">
-<button class="admin" onclick="admin()">管理画面</button>
 </div>
 
 <script>
+const vehicles=["黒VOXY","銀VOXY","ノア","スペード","ミラ①","ミラ②","アイシス"];
+let data=JSON.parse(localStorage.getItem("spsukData"))||{records:[],drivers:["田中","佐藤"],groups:{
+"児童":["児童A","児童B"],
+"就労":["就労A","就労B"],
+"職員":["職員A"]
+}};
 
-let vehicles = ["黒VOXY","銀VOXY","ノア","スペード","ミラ①","ミラ②","アイシス"];
+const vehicleSelect=document.getElementById("vehicle");
+vehicles.forEach(v=>vehicleSelect.innerHTML+=`<option>${v}</option>`);
 
-let vehicleData = JSON.parse(localStorage.getItem("vehicleData")) || {};
-vehicles.forEach(v=>{
-  if(!vehicleData[v]){
-    vehicleData[v]={meter:0,correction:1.00};
-  }
+const driverSelect=document.getElementById("driver");
+data.drivers.forEach(d=>driverSelect.innerHTML+=`<option>${d}</option>`);
+
+let selectedPassengers=[];
+
+function renderPassengers(){
+const group=document.getElementById("groupSelect").value;
+const list=document.getElementById("passengerList");
+list.innerHTML="";
+data.groups[group].forEach(name=>{
+const checked=selectedPassengers.includes(name)?"checked":"";
+list.innerHTML+=`<label><input type="checkbox" value="${name}" ${checked}
+onchange="togglePassenger(this)"> ${name}</label>`;
 });
-localStorage.setItem("vehicleData",JSON.stringify(vehicleData));
+}
 
-let drivers = JSON.parse(localStorage.getItem("drivers")) || ["田中","佐藤","山本"];
-drivers.forEach(d=>{
-  let opt=document.createElement("option");
-  opt.text=d;
-  driver.appendChild(opt);
+function togglePassenger(el){
+if(el.checked){
+if(selectedPassengers.length>=7){alert("最大7名");el.checked=false;return;}
+selectedPassengers.push(el.value);
+}else{
+selectedPassengers=selectedPassengers.filter(n=>n!==el.value);
+}
+}
+
+function saveRecord(){
+const start=parseInt(document.getElementById("startMeter").value);
+const end=parseInt(document.getElementById("endMeter").value);
+if(isNaN(start)||isNaN(end)||end<start){alert("メーター確認");return;}
+
+data.records.push({
+date:new Date().toLocaleDateString(),
+vehicle:vehicleSelect.value,
+driver:driverSelect.value,
+start:start,
+end:end,
+distance:end-start,
+passengers:selectedPassengers.join(",")
 });
 
-let passengerData={
-  "児童":["児童A","児童B","児童C","児童D","児童E"],
-  "就労":["就労A","就労B","就労C","就労D","就労E"],
-  "職員":["職員A","職員B","職員C","職員D","職員E"]
-};
-
-let selectedPassengers=new Set();
-let trips=JSON.parse(localStorage.getItem("trips"))||[];
-let currentTrip=null;
-let watchId=null;
-let distance=0,lastPos=null;
-
-function showGroup(group){
-  passengerBox.innerHTML="";
-  passengerData[group].forEach(name=>{
-    let label=document.createElement("label");
-    let cb=document.createElement("input");
-    cb.type="checkbox";
-    cb.value=name;
-    cb.checked=selectedPassengers.has(name);
-    cb.onchange=function(){
-      if(this.checked){
-        if(selectedPassengers.size>=7){
-          alert("最大7名まで");
-          this.checked=false;
-          return;
-        }
-        selectedPassengers.add(name);
-      }else{
-        selectedPassengers.delete(name);
-      }
-    };
-    label.appendChild(cb);
-    label.appendChild(document.createTextNode(name));
-    passengerBox.appendChild(label);
-    passengerBox.appendChild(document.createElement("br"));
-  });
+localStorage.setItem("spsukData",JSON.stringify(data));
+alert("保存完了");
+document.getElementById("startMeter").value="";
+document.getElementById("endMeter").value="";
+selectedPassengers=[];
+renderPassengers();
 }
 
-destination.onchange=function(){
-  otherDest.style.display=this.value==="その他"?"block":"none";
-};
-
-function startTrip(){
-  if(currentTrip){alert("運行中です");return;}
-  distance=0;lastPos=null;
-  let v=vehicle.value;
-  let startMeter=vehicleData[v].meter;
-  currentTrip={
-    vehicle:v,
-    driver:driver.value,
-    category:category.value,
-    passengers:Array.from(selectedPassengers).join("・"),
-    destination:destination.value==="その他"?otherDest.value:destination.value,
-    start:new Date().toLocaleString(),
-    startMeter:startMeter
-  };
-  watchId=navigator.geolocation.watchPosition(updatePos);
-  status.innerHTML=`🚗${v}<br>出発メーター:${startMeter}km`;
-}
-
-function updatePos(pos){
-  if(!lastPos){lastPos=pos;return;}
-  let R=6371;
-  let dLat=(pos.coords.latitude-lastPos.coords.latitude)*Math.PI/180;
-  let dLon=(pos.coords.longitude-lastPos.coords.longitude)*Math.PI/180;
-  let a=Math.sin(dLat/2)**2+
-    Math.cos(lastPos.coords.latitude*Math.PI/180)*
-    Math.cos(pos.coords.latitude*Math.PI/180)*
-    Math.sin(dLon/2)**2;
-  let c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-  distance+=R*c;
-  lastPos=pos;
-}
-
-function endTrip(){
-  if(!currentTrip){alert("運行していません");return;}
-  navigator.geolocation.clearWatch(watchId);
-  let v=currentTrip.vehicle;
-  let corrected=distance*vehicleData[v].correction;
-  vehicleData[v].meter+=corrected;
-  currentTrip.end=new Date().toLocaleString();
-  currentTrip.gps=distance.toFixed(2);
-  currentTrip.corrected=corrected.toFixed(2);
-  currentTrip.endMeter=vehicleData[v].meter.toFixed(2);
-  trips.push(currentTrip);
-  localStorage.setItem("trips",JSON.stringify(trips));
-  localStorage.setItem("vehicleData",JSON.stringify(vehicleData));
-  currentTrip=null;
-  selectedPassengers.clear();
-  status.innerHTML="待機中";
-  alert("記録しました");
-}
-
-function admin(){
-  let pw=prompt("パスワード");
-  if(pw!=="SP5811"){alert("違います");return;}
-  let menu=prompt("1:CSV出力 2:メーター編集");
-  if(menu==="1"){
-    let v=prompt("車両名を入力");
-    let csv="日付,出発,到着,運転者,所属,同乗者,行先,GPS距離,補正距離,出発メーター,到着メーター\n";
-    trips.filter(t=>t.vehicle===v).forEach(t=>{
-      csv+=`${t.start},${t.start},${t.end},${t.driver},${t.category},${t.passengers},${t.destination},${t.gps},${t.corrected},${t.startMeter},${t.endMeter}\n`;
-    });
-    let blob=new Blob([csv],{type:"text/csv"});
-    let link=document.createElement("a");
-    link.href=URL.createObjectURL(blob);
-    link.download=v+".csv";
-    link.click();
-  }
-  if(menu==="2"){
-    let v=prompt("車両名を入力");
-    let m=prompt("現在メーター値",vehicleData[v].meter);
-    vehicleData[v].meter=parseFloat(m);
-    localStorage.setItem("vehicleData",JSON.stringify(vehicleData));
-    alert("更新しました");
-  }
-}
-
-showGroup("児童");
-
+renderPassengers();
 </script>
 </body>
 </html>
