@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理画面</title>
+<style>
+body{font-family:sans-serif;margin:0;background:#f4fbff;}
+header{background:#6bbcf5;padding:15px;text-align:center;color:white;font-size:20px;}
+.container{padding:15px;}
+button{width:100%;padding:12px;margin:5px 0;font-size:16px;background:#6bbcf5;color:white;border:none;border-radius:8px;}
+textarea{width:100%;height:80px;}
+input{width:100%;padding:10px;margin:5px 0;}
+.tab{display:none;}
+.tab.active{display:block;}
+</style>
+</head>
+<body>
+
+<script>
+const pass=prompt("パスワード入力");
+if(pass!=="SP5811"){alert("NG");location.href="index.html";}
+</script>
+
+<header>管理画面</header>
+
+<div class="container">
+<button onclick="showTab(1)">車両設定</button>
+<button onclick="showTab(2)">人員管理</button>
+<button onclick="showTab(3)">CSV出力</button>
+
+<div id="tab1" class="tab">
+<h3>車両所属・備考</h3>
+<p>（簡易表示・必要なら拡張可能）</p>
+</div>
+
+<div id="tab2" class="tab">
+<h3>人員追加</h3>
+<select id="group">
+<option>児童</option>
+<option>就労</option>
+<option>職員</option>
+</select>
+<input id="newName" placeholder="名前">
+<button onclick="addPerson()">追加</button>
+</div>
+
+<div id="tab3" class="tab">
+<h3>CSV出力（全車両まとめて・タブ区切り）</h3>
+<button onclick="exportCSV()">ダウンロード</button>
+</div>
+
+</div>
+
+<script>
+function showTab(n){
+document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+document.getElementById("tab"+n).classList.add("active");
+}
+
+let data=JSON.parse(localStorage.getItem("spsukData"))||{records:[],groups:{}};
+
+function addPerson(){
+const g=document.getElementById("group").value;
+const name=document.getElementById("newName").value;
+if(!data.groups[g])data.groups[g]=[];
+data.groups[g].push(name);
+localStorage.setItem("spsukData",JSON.stringify(data));
+alert("追加完了");
+}
+
+function exportCSV(){
+let tsv="日付\t車両\t運転者\t出発メーター\t終了メーター\t走行距離\t同乗者\n";
+data.records.forEach(r=>{
+tsv+=`${r.date}\t${r.vehicle}\t${r.driver}\t${r.start}\t${r.end}\t${r.distance}\t${r.passengers}\n`;
+});
+const blob=new Blob([tsv],{type:"text/tab-separated-values"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="spsuk_all.tsv";
+a.click();
+}
+
+showTab(1);
+</script>
+
+</body>
+</html>
