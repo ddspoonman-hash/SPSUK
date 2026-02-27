@@ -3,26 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPSUK 車両運行</title>
+<title>SPSUK 車両運行管理</title>
+
 <style>
-body{font-family:sans-serif;margin:0;background:#eaf4fb;}
-header{background:#b3d9f7;padding:15px;text-align:center;font-size:20px;font-weight:bold;}
+body{font-family:sans-serif;margin:0;background:#eef5fb;}
+header{background:#9fc5e8;padding:15px;text-align:center;font-size:20px;font-weight:bold;}
+.tabs{display:flex;}
+.tabs button{flex:1;padding:12px;border:none;font-size:16px;background:#cfe2f3;}
+.tabs button.active{background:#6fa8dc;color:white;font-weight:bold;}
 .container{padding:15px;}
-select,input,button{width:100%;padding:12px;margin:5px 0;font-size:16px;}
-button{background:#6bbcf5;border:none;color:white;font-weight:bold;border-radius:8px;}
-.passenger-box{border:1px solid #ccc;background:white;padding:10px;margin-top:10px;max-height:180px;overflow:auto;}
-label{display:block;margin:3px 0;}
+input,select,button{width:100%;padding:10px;margin:6px 0;font-size:15px;}
+button.main{background:#6fa8dc;color:white;border:none;border-radius:6px;}
+.passenger-box{background:white;border:1px solid #ccc;padding:10px;max-height:150px;overflow:auto;}
+table{width:100%;border-collapse:collapse;background:white;margin-top:10px;}
+th,td{border:1px solid #ccc;padding:6px;font-size:13px;text-align:center;}
+th{background:#ddebf7;}
+.smallbtn{padding:4px 8px;font-size:12px;}
 </style>
 </head>
+
 <body>
+
 <header>SPSUK 車両運行管理</header>
-<div class="container">
+
+<div class="tabs">
+<button id="tabInput" class="active" onclick="showTab('input')">運行入力</button>
+<button id="tabAdmin" onclick="showTab('admin')">管理画面</button>
+</div>
+
+<!-- ================= 入力画面 ================= -->
+<div id="inputTab" class="container">
 
 <select id="vehicle"></select>
 <select id="driver"></select>
 
+<label>出発時刻</label>
+<input type="time" id="startTime">
+
+<label>終了時刻</label>
+<input type="time" id="endTime">
+
 <input type="number" id="startMeter" placeholder="出発メーター">
 <input type="number" id="endMeter" placeholder="終了メーター">
+
+<input type="text" id="destination" placeholder="行先">
 
 <select id="groupSelect" onchange="renderPassengers()">
 <option value="児童">児童</option>
@@ -32,17 +56,50 @@ label{display:block;margin:3px 0;}
 
 <div class="passenger-box" id="passengerList"></div>
 
-<button onclick="saveRecord()">保存</button>
+<button class="main" onclick="saveRecord()">保存</button>
+
+</div>
+
+<!-- ================= 管理画面 ================= -->
+<div id="adminTab" class="container" style="display:none;">
+
+<label>表示月</label>
+<input type="month" id="monthFilter" onchange="renderTable()">
+
+<div id="totalDistance"></div>
+
+<button onclick="exportCSV()">CSV出力</button>
+
+<table>
+<thead>
+<tr>
+<th>日付</th>
+<th>車両</th>
+<th>運転者</th>
+<th>行先</th>
+<th>距離</th>
+<th>削除</th>
+</tr>
+</thead>
+<tbody id="recordTable"></tbody>
+</table>
 
 </div>
 
 <script>
+const SCRIPT_URL="ここにAppsScriptのURL";
+
 const vehicles=["黒VOXY","銀VOXY","ノア","スペード","ミラ①","ミラ②","アイシス"];
-let data=JSON.parse(localStorage.getItem("spsukData"))||{records:[],drivers:["田中","佐藤"],groups:{
+
+let data=JSON.parse(localStorage.getItem("spsukData"))||{
+records:[],
+drivers:["田中","佐藤"],
+groups:{
 "児童":["児童A","児童B"],
 "就労":["就労A","就労B"],
 "職員":["職員A"]
-}};
+}
+};
 
 const vehicleSelect=document.getElementById("vehicle");
 vehicles.forEach(v=>vehicleSelect.innerHTML+=`<option>${v}</option>`);
@@ -51,6 +108,14 @@ const driverSelect=document.getElementById("driver");
 data.drivers.forEach(d=>driverSelect.innerHTML+=`<option>${d}</option>`);
 
 let selectedPassengers=[];
+
+function showTab(tab){
+document.getElementById("inputTab").style.display=(tab==="input")?"block":"none";
+document.getElementById("adminTab").style.display=(tab==="admin")?"block":"none";
+document.getElementById("tabInput").classList.toggle("active",tab==="input");
+document.getElementById("tabAdmin").classList.toggle("active",tab==="admin");
+if(tab==="admin") renderTable();
+}
 
 function renderPassengers(){
 const group=document.getElementById("groupSelect").value;
@@ -73,42 +138,94 @@ selectedPassengers=selectedPassengers.filter(n=>n!==el.value);
 }
 
 function saveRecord(){
-const start=parseInt(document.getElementById("startMeter").value);
-const end=parseInt(document.getElementById("endMeter").value);
-if(isNaN(start)||isNaN(end)||end<start){alert("メーター確認");return;}
 
-data.records.push({
-date:new Date().toLocaleDateString(),
+const startMeter=parseInt(document.getElementById("startMeter").value);
+const endMeter=parseInt(document.getElementById("endMeter").value);
+
+if(isNaN(startMeter)||isNaN(endMeter)||endMeter<startMeter){
+alert("メーター確認");return;
+}
+
+const now=new Date();
+const monthKey=now.toISOString().slice(0,7);
+
+const record={
+date:now.toLocaleDateString(),
+month:monthKey,
 vehicle:vehicleSelect.value,
 driver:driverSelect.value,
-start:start,
-end:end,
-distance:end-start,
+startTime:document.getElementById("startTime").value,
+endTime:document.getElementById("endTime").value,
+start:startMeter,
+end:endMeter,
+distance:endMeter-startMeter,
+destination:document.getElementById("destination").value,
 passengers:selectedPassengers.join(",")
-});
+};
 
-  // Google送信
-fetch("https://script.google.com/macros/s/AKfycbzWIZuiX_C5OWFJEmtYDp2Zs3mu4GhhmShPHRwKm8oLyI5CX0at6aDF_PAsX_7V3JY4eQ/exec",{
-method:"POST",
-body:JSON.stringify({
-vehicle:vehicleSelect.value,
-driver:driverSelect.value,
-start:start,
-end:end,
-distance:end-start,
-passengers:selectedPassengers.join(",")
-})
-});
+data.records.push(record);
 localStorage.setItem("spsukData",JSON.stringify(data));
+
+fetch(SCRIPT_URL,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(record)
+});
+
 alert("保存完了");
+
 document.getElementById("startMeter").value="";
 document.getElementById("endMeter").value="";
+document.getElementById("destination").value="";
 selectedPassengers=[];
 renderPassengers();
 }
 
+function renderTable(){
+const month=document.getElementById("monthFilter").value;
+const tbody=document.getElementById("recordTable");
+tbody.innerHTML="";
+let total=0;
+
+data.records.filter(r=>!month||r.month===month)
+.forEach((r,i)=>{
+total+=r.distance;
+tbody.innerHTML+=`
+<tr>
+<td>${r.date}</td>
+<td>${r.vehicle}</td>
+<td>${r.driver}</td>
+<td>${r.destination}</td>
+<td>${r.distance}</td>
+<td><button class="smallbtn" onclick="deleteRecord(${i})">削除</button></td>
+</tr>`;
+});
+
+document.getElementById("totalDistance").innerText="総走行距離："+total+" km";
+}
+
+function deleteRecord(index){
+if(!confirm("削除しますか？")) return;
+data.records.splice(index,1);
+localStorage.setItem("spsukData",JSON.stringify(data));
+renderTable();
+}
+
+function exportCSV(){
+let csv="日付,車両,運転者,行先,距離\n";
+data.records.forEach(r=>{
+csv+=`${r.date},${r.vehicle},${r.driver},${r.destination},${r.distance}\n`;
+});
+const blob=new Blob([csv],{type:"text/csv"});
+const url=URL.createObjectURL(blob);
+const a=document.createElement("a");
+a.href=url;
+a.download="運行記録.csv";
+a.click();
+}
+
 renderPassengers();
 </script>
+
 </body>
 </html>
-
