@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPSUK 運行管理</title>
+<style>
+body{
+  font-family:sans-serif;
+  margin:0;
+  padding:12px;
+  background:#e6f2f8;
+}
+h1{
+  text-align:center;
+  color:#003366;
+}
+.card{
+  background:white;
+  padding:15px;
+  margin-bottom:15px;
+  border-radius:15px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.1);
+}
+label{
+  font-weight:bold;
+}
+select,input{
+  width:100%;
+  padding:12px;
+  margin-top:5px;
+  margin-bottom:10px;
+  font-size:18px;
+  border-radius:10px;
+  border:1px solid #ccc;
+}
+button{
+  width:100%;
+  padding:15px;
+  font-size:20px;
+  border-radius:12px;
+  border:none;
+  margin-top:10px;
+}
+.startBtn{background:#0077cc;color:white;}
+.endBtn{background:#003366;color:white;}
+.csvBtn{background:#0099cc;color:white;}
+.adminBtn{background:#555;color:white;}
+.statusBox{
+  font-size:18px;
+}
+.passengerList{
+  max-height:150px;
+  overflow-y:auto;
+  border:1px solid #ccc;
+  padding:5px;
+  border-radius:8px;
+}
+</style>
+</head>
+<body>
+
+<h1>SPSUK 運行管理</h1>
+
+<div class="card">
+<label>車両</label>
+<select id="vehicle">
+<option>黒VOXY</option>
+<option>銀VOXY</option>
+<option>ノア</option>
+<option>スペード</option>
+<option>ミラ①</option>
+<option>ミラ②</option>
+<option>アイシス</option>
+</select>
+
+<label>運転者</label>
+<select id="driver"></select>
+
+<label>所属</label>
+<select id="group" onchange="loadPassengers()">
+<option>児童</option>
+<option>就労</option>
+<option>職員</option>
+</select>
+
+<label>同乗者（最大7名）</label>
+<div class="passengerList" id="passengerList"></div>
+
+<label>行先</label>
+<select id="destination">
+<option>市役所</option>
+<option>病院</option>
+<option>送迎</option>
+<option>買い物</option>
+<option>その他</option>
+</select>
+<input type="text" id="otherDestination" placeholder="その他入力" style="display:none;">
+
+<button class="startBtn" onclick="startTrip()">出発</button>
+<button class="endBtn" onclick="endTrip()">到着</button>
+</div>
+
+<div class="card statusBox">
+<h3>外出中</h3>
+<div id="status">待機中</div>
+</div>
+
+<div class="card">
+<button class="csvBtn" onclick="downloadCSV()">CSV出力</button>
+<button class="adminBtn" onclick="adminLogin()">管理画面</button>
+</div>
+
+<script>
+
+let drivers = JSON.parse(localStorage.getItem("drivers")) || ["田中","佐藤","山本"];
+
+let passengerData = {
+  "児童":["児童A","児童B","児童C","児童D","児童E"],
+  "就労":["就労A","就労B","就労C","就労D","就労E"],
+  "職員":["職員A","職員B","職員C","職員D","職員E"]
+};
+
+let trips = JSON.parse(localStorage.getItem("trips")) || [];
+let currentTrip = null;
+let watchId = null;
+let distance = 0;
+let lastPosition = null;
+
+drivers.forEach(d=>{
+  let opt=document.createElement("option");
+  opt.text=d;
+  driver.appendChild(opt);
+});
+
+function loadPassengers(){
+  let g=group.value;
+  passengerList.innerHTML="";
+  passengerData[g].forEach(name=>{
+    let label=document.createElement("label");
+    let cb=document.createElement("input");
+    cb.type="checkbox";
+    cb.value=name;
+    cb.onchange=limitPassengers;
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(name));
+    passengerList.appendChild(label);
+    passengerList.appendChild(document.createElement("br"));
+  });
+}
+
+function limitPassengers(){
+  let checked=document.querySelectorAll(".passengerList input:checked");
+  if(checked.length>7){
+    this.checked=false;
+    alert("同乗者は最大7名までです");
+  }
+}
+
+destination.addEventListener("change",function(){
+  otherDestination.style.display=this.value==="その他"?"block":"none";
+});
+
+function startTrip(){
+  if(currentTrip){ alert("すでに運行中"); return; }
+
+  let selected=[];
+  document.querySelectorAll(".passengerList input:checked").forEach(cb=>{
+    selected.push(cb.value);
+  });
+
+  currentTrip={
+    vehicle:vehicle.value,
+    driver:driver.value,
+    group:group.value,
+    passengers:selected.join("・"),
+    destination:destination.value==="その他"?otherDestination.value:destination.value,
+    start:new Date().toLocaleString(),
+    distance:0
+  };
+
+  distance=0;
+  lastPosition=null;
+  watchId=navigator.geolocation.watchPosition(updatePosition);
+
+  status.innerHTML=`
+  🚗 ${currentTrip.vehicle}<br>
+  👤 ${currentTrip.driver}<br>
+  👥 ${currentTrip.passengers}<br>
+  🗺 ${currentTrip.destination}<br>
+  走行距離: 0 km
+  `;
+}
+
+function updatePosition(position){
+  if(!lastPosition){
+    lastPosition=position;
+    return;
+  }
+  let lat1=lastPosition.coords.latitude;
+  let lon1=lastPosition.coords.longitude;
+  let lat2=position.coords.latitude;
+  let lon2=position.coords.longitude;
+  let R=6371;
+  let dLat=(lat2-lat1)*Math.PI/180;
+  let dLon=(lon2-lon1)*Math.PI/180;
+  let a=Math.sin(dLat/2)*Math.sin(dLat/2)+
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+    Math.sin(dLon/2)*Math.sin(dLon/2);
+  let c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  let d=R*c;
+  distance+=d;
+  lastPosition=position;
+  currentTrip.distance=distance.toFixed(2);
+  status.innerHTML+=`<br>走行距離: ${currentTrip.distance} km`;
+}
+
+function endTrip(){
+  if(!currentTrip){ alert("運行していません"); return; }
+
+  navigator.geolocation.clearWatch(watchId);
+  currentTrip.end=new Date().toLocaleString();
+  trips.push(currentTrip);
+  localStorage.setItem("trips",JSON.stringify(trips));
+  currentTrip=null;
+  status.innerHTML="待機中";
+  alert("記録しました");
+}
+
+function downloadCSV(){
+  let csv="日付,車両,運転者,所属,同乗者,行先,距離\n";
+  trips.forEach(t=>{
+    csv+=`${t.start},${t.vehicle},${t.driver},${t.group},${t.passengers},${t.destination},${t.distance}\n`;
+  });
+  let blob=new Blob([csv],{type:"text/csv"});
+  let link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="SPSUK.csv";
+  link.click();
+}
+
+function adminLogin(){
+  let pw=prompt("パスワード入力");
+  if(pw==="SP5811"){
+    let newDriver=prompt("運転者追加（名前入力）");
+    if(newDriver){
+      drivers.push(newDriver);
+      localStorage.setItem("drivers",JSON.stringify(drivers));
+      alert("追加しました。再読込してください。");
+    }
+  }else{
+    alert("パスワード違い");
+  }
+}
+
+loadPassengers();
+
+</script>
+</body>
+</html>
