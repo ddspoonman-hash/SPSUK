@@ -177,7 +177,7 @@ let trips=JSON.parse(localStorage.getItem("trips")||"[]");
 trips.push(trip);
 localStorage.setItem("trips",JSON.stringify(trips));
 
-sendToSheet(trip);
+google.script.run.saveRecord(trip);
 
 alert("保存しました");
 location.reload();
@@ -193,3 +193,4 @@ body:JSON.stringify(trip)
 
 </body>
 </html>
+
