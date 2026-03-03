@@ -1,104 +1,89 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>運行管理</title>
 
 <style>
 body{
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
   background:#f2f2f7;
 }
 
 .container{
+  max-width:420px;
+  margin:0 auto;
   padding:20px;
 }
 
 .card{
   background:white;
   padding:20px;
-  border-radius:20px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.1);
+  border-radius:16px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.08);
+}
+
+h2{
+  text-align:center;
   margin-bottom:20px;
 }
 
 input{
   width:100%;
-  padding:15px;
-  font-size:18px;
+  padding:16px;
   margin-bottom:15px;
-  border-radius:12px;
+  font-size:16px;
+  border-radius:10px;
   border:1px solid #ccc;
+  box-sizing:border-box;
 }
 
 button{
   width:100%;
-  padding:18px;
-  font-size:20px;
-  border:none;
-  border-radius:16px;
+  padding:16px;
+  font-size:18px;
   background:#007aff;
   color:white;
-  font-weight:bold;
-  margin-top:10px;
+  border:none;
+  border-radius:12px;
 }
 
 button:active{
-  transform:scale(0.97);
-}
-
-.title{
-  font-size:26px;
-  font-weight:bold;
-  margin-bottom:20px;
-  text-align:center;
+  opacity:0.8;
 }
 </style>
 </head>
+
 <body>
 
 <div class="container">
-
-<div class="card" id="loginCard">
-  <div class="title">ログイン</div>
-  <input type="text" id="id" placeholder="ID">
-  <input type="password" id="pw" placeholder="パスワード">
-  <button onclick="login()">ログイン</button>
-</div>
-
-<div id="vehicleArea" style="display:none;"></div>
-
+  <div class="card">
+    <h2>ログイン</h2>
+    <input id="loginId" placeholder="ID">
+    <input id="loginPass" type="password" placeholder="パスワード">
+    <button onclick="login()">ログイン</button>
+  </div>
 </div>
 
 <script>
-
 const API_URL = "https://script.google.com/macros/s/AKfycbzqlyQIaksGLgOOxwktsqKZL6dkQbrPHAcWW8gP8kF2ahin_wNcorYAs99du1BtjhRXDA/exec";
-
-async function sha256(text){
-  const msgUint8 = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
-}
 
 async function login(){
 
-  const id = document.getElementById("id").value;
-  const pw = document.getElementById("pw").value;
+  const id = document.getElementById("loginId").value;
+  const pass = document.getElementById("loginPass").value;
 
-  if(!id || !pw){
+  if(!id || !pass){
     alert("入力してください");
     return;
   }
 
-  const passwordHash = await sha256(pw);
-
-  const formData = new FormData();
+  const formData = new URLSearchParams();
   formData.append("action","login");
   formData.append("id",id);
-  formData.append("passwordHash",passwordHash);
+  formData.append("pass",pass);
 
   const res = await fetch(API_URL,{
     method:"POST",
@@ -108,60 +93,12 @@ async function login(){
   const data = await res.json();
 
   if(data.success){
-    localStorage.setItem("token",data.token);
-    loadVehicles();
+    alert("ログイン成功");
   }else{
     alert("ログイン失敗");
   }
 }
-
-async function loadVehicles(){
-
-  const token = localStorage.getItem("token");
-
-  const formData = new FormData();
-  formData.append("action","getVehicles");
-  formData.append("token",token);
-
-  const res = await fetch(API_URL,{
-    method:"POST",
-    body:formData
-  });
-
-  const data = await res.json();
-
-  if(data.error){
-    alert("セッション切れ");
-    return;
-  }
-
-  document.getElementById("loginCard").style.display="none";
-  const area = document.getElementById("vehicleArea");
-  area.style.display="block";
-  area.innerHTML="";
-
-  data.vehicles.forEach(v=>{
-
-    const statusColor = v.status==="running" ? "#ff3b30" : "#34c759";
-    const statusText = v.status==="running" ? "走行中" : "待機中";
-
-    area.innerHTML += `
-      <div class="card">
-        <div style="font-size:22px;font-weight:bold;">${v.vehicle}</div>
-        <div style="color:${statusColor};font-weight:bold;margin-top:5px;">
-          ${statusText}
-        </div>
-        <div style="margin-top:10px;">
-          メーター: ${v.meter} km
-        </div>
-      </div>
-    `;
-  });
-
-}
-
 </script>
 
 </body>
 </html>
-
