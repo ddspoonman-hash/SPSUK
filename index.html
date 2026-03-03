@@ -71,14 +71,8 @@ button:active{
 const API_URL = "https://script.google.com/macros/s/AKfycbzqlyQIaksGLgOOxwktsqKZL6dkQbrPHAcWW8gP8kF2ahin_wNcorYAs99du1BtjhRXDA/exec";
 
 async function login(){
-
-  const id = document.getElementById("loginId").value;
-  const pass = document.getElementById("loginPass").value;
-
-  if(!id || !pass){
-    alert("入力してください");
-    return;
-  }
+  alert("ボタンは押されている");
+}
 
   const formData = new URLSearchParams();
   formData.append("action","login");
@@ -102,4 +96,5 @@ async function login(){
 
 </body>
 </html>
+
 
