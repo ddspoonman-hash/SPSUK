@@ -1,192 +1,166 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>運行記録アプリ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>運行管理</title>
 
 <style>
-body { font-family: sans-serif; padding: 15px; background:#f5f5f5; }
-h2 { margin-top:0; }
-.card { background:white; padding:15px; border-radius:10px; margin-bottom:15px; }
-button { padding:10px; width:100%; margin-top:10px; font-size:16px; }
-.primary { background:#007aff; color:white; border:none; }
-.danger { background:#ff3b30; color:white; border:none; }
-.success { background:#34c759; color:white; border:none; }
-select,input { width:100%; padding:8px; margin-top:5px; }
-.hidden { display:none; }
-.status { font-size:18px; font-weight:bold; }
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont;
+  background:#f2f2f7;
+}
+
+.container{
+  padding:20px;
+}
+
+.card{
+  background:white;
+  padding:20px;
+  border-radius:20px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.1);
+  margin-bottom:20px;
+}
+
+input{
+  width:100%;
+  padding:15px;
+  font-size:18px;
+  margin-bottom:15px;
+  border-radius:12px;
+  border:1px solid #ccc;
+}
+
+button{
+  width:100%;
+  padding:18px;
+  font-size:20px;
+  border:none;
+  border-radius:16px;
+  background:#007aff;
+  color:white;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+button:active{
+  transform:scale(0.97);
+}
+
+.title{
+  font-size:26px;
+  font-weight:bold;
+  margin-bottom:20px;
+  text-align:center;
+}
 </style>
 </head>
 <body>
 
-<h2>🚗 運行記録</h2>
+<div class="container">
 
-<div class="card">
-
-<label>車両</label>
-<select id="vehicle">
-<option>車両A</option>
-<option>車両B</option>
-</select>
-
-<label>運転者</label>
-<select id="driver">
-<option>田中</option>
-<option>佐藤</option>
-</select>
-
-<button class="primary" onclick="startTrip()">出発</button>
-<button class="danger" onclick="stopTrip()">終了</button>
-
+<div class="card" id="loginCard">
+  <div class="title">ログイン</div>
+  <input type="text" id="id" placeholder="ID">
+  <input type="password" id="pw" placeholder="パスワード">
+  <button onclick="login()">ログイン</button>
 </div>
 
-<div class="card">
-<div>経過時間：<span id="elapsed">0分0秒</span></div>
-<div>走行距離：<span id="distance">0.00 km</span></div>
-</div>
-
-<div id="afterArea" class="card hidden">
-
-<label>行先（必須）</label>
-<input type="text" id="destination">
-
-<h3>同乗者</h3>
-
-<select id="groupSelect" onchange="switchGroup()">
-<option value="child">児童</option>
-<option value="worker">就労</option>
-<option value="staff">職員</option>
-</select>
-
-<div id="passengerArea"></div>
-
-<button class="success" onclick="saveTrip()">保存</button>
+<div id="vehicleArea" style="display:none;"></div>
 
 </div>
 
 <script>
-let watchId=null;
-let totalDistance=0;
-let lastPos=null;
-let startTime=null;
-let endTime=null;
-let timer=null;
 
-const passengers={
-child:["山本","鈴木"],
-worker:["高橋","伊藤"],
-staff:["佐々木","中村"]
-};
+const API_URL = "https://script.google.com/macros/s/AKfycbwZ4B243XmgFVFVmWlrUJi4FDAWBG-UrgDj5QgZ_Y1F0T_pqg066eQBeO_wMEmqGxq5fw/exec";
 
-let selectedPassengers={};
-
-function startTrip(){
-startTime=new Date();
-totalDistance=0;
-lastPos=null;
-selectedPassengers={};
-document.getElementById("distance").innerText="0.00 km";
-document.getElementById("afterArea").classList.add("hidden");
-
-watchId=navigator.geolocation.watchPosition(updatePos,null,{
-enableHighAccuracy:true,
-maximumAge:0,
-timeout:5000
-});
-
-timer=setInterval(updateTimer,1000);
+async function sha256(text){
+  const msgUint8 = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-function stopTrip(){
-navigator.geolocation.clearWatch(watchId);
-clearInterval(timer);
-endTime=new Date();
-document.getElementById("afterArea").classList.remove("hidden");
-switchGroup();
+async function login(){
+
+  const id = document.getElementById("id").value;
+  const pw = document.getElementById("pw").value;
+
+  if(!id || !pw){
+    alert("入力してください");
+    return;
+  }
+
+  const passwordHash = await sha256(pw);
+
+  const formData = new FormData();
+  formData.append("action","login");
+  formData.append("id",id);
+  formData.append("passwordHash",passwordHash);
+
+  const res = await fetch(API_URL,{
+    method:"POST",
+    body:formData
+  });
+
+  const data = await res.json();
+
+  if(data.success){
+    localStorage.setItem("token",data.token);
+    loadVehicles();
+  }else{
+    alert("ログイン失敗");
+  }
 }
 
-function updateTimer(){
-let diff=Math.floor((new Date()-startTime)/1000);
-let m=Math.floor(diff/60);
-let s=diff%60;
-document.getElementById("elapsed").innerText=m+"分"+s+"秒";
+async function loadVehicles(){
+
+  const token = localStorage.getItem("token");
+
+  const formData = new FormData();
+  formData.append("action","getVehicles");
+  formData.append("token",token);
+
+  const res = await fetch(API_URL,{
+    method:"POST",
+    body:formData
+  });
+
+  const data = await res.json();
+
+  if(data.error){
+    alert("セッション切れ");
+    return;
+  }
+
+  document.getElementById("loginCard").style.display="none";
+  const area = document.getElementById("vehicleArea");
+  area.style.display="block";
+  area.innerHTML="";
+
+  data.vehicles.forEach(v=>{
+
+    const statusColor = v.status==="running" ? "#ff3b30" : "#34c759";
+    const statusText = v.status==="running" ? "走行中" : "待機中";
+
+    area.innerHTML += `
+      <div class="card">
+        <div style="font-size:22px;font-weight:bold;">${v.vehicle}</div>
+        <div style="color:${statusColor};font-weight:bold;margin-top:5px;">
+          ${statusText}
+        </div>
+        <div style="margin-top:10px;">
+          メーター: ${v.meter} km
+        </div>
+      </div>
+    `;
+  });
+
 }
-
-function updatePos(pos){
-if(pos.coords.accuracy>50)return;
-
-let current={
-lat:pos.coords.latitude,
-lng:pos.coords.longitude
-};
-
-if(lastPos){
-let d=calcDist(lastPos,current);
-if(d>0.005 && d<1){
-totalDistance+=d;
-document.getElementById("distance").innerText=
-totalDistance.toFixed(2)+" km";
-}
-}
-lastPos=current;
-}
-
-function calcDist(p1,p2){
-let R=6371;
-let dLat=deg(p2.lat-p1.lat);
-let dLon=deg(p2.lng-p1.lng);
-let a=Math.sin(dLat/2)**2+
-Math.cos(deg(p1.lat))*Math.cos(deg(p2.lat))*
-Math.sin(dLon/2)**2;
-return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-function deg(d){return d*(Math.PI/180);}
-
-function switchGroup(){
-let g=document.getElementById("groupSelect").value;
-let area=document.getElementById("passengerArea");
-area.innerHTML="";
-passengers[g].forEach(name=>{
-let checked=selectedPassengers[name]?"checked":"";
-area.innerHTML+=
-`<label><input type="checkbox" onchange="togglePassenger('${name}')" ${checked}> ${name}</label><br>`;
-});
-}
-
-function togglePassenger(name){
-selectedPassengers[name]=!selectedPassengers[name];
-}
-
-function saveTrip(){
-let dest=document.getElementById("destination").value;
-if(!dest){alert("行先は必須です");return;}
-
-let trip={
-date:new Date().toISOString().split("T")[0],
-vehicle:document.getElementById("vehicle").value,
-driver:document.getElementById("driver").value,
-start:startTime,
-end:endTime,
-distance:totalDistance.toFixed(2),
-destination:dest,
-passengers:Object.keys(selectedPassengers).filter(n=>selectedPassengers[n])
-};
-
-let trips=JSON.parse(localStorage.getItem("trips")||"[]");
-trips.push(trip);
-localStorage.setItem("trips",JSON.stringify(trips));
-
-google.script.run.saveRecord(trip);
-
-alert("保存しました");
-location.reload();
-}
-
 
 </script>
 
 </body>
 </html>
-
-
