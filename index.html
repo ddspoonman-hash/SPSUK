@@ -84,11 +84,7 @@ h2{ margin-top:0; }
 const API_URL = "https://script.google.com/macros/s/AKfycbzqlyQIaksGLgOOxwktsqKZL6dkQbrPHAcWW8gP8kF2ahin_wNcorYAs99du1BtjhRXDA/exec";
 
 /* 仮データ（あとでGAS連携） */
-let vehicles = [
-  {name:"A号車", status:"wait"},
-  {name:"B号車", status:"run", driver:"田中"},
-  {name:"C号車", status:"wait"}
-];
+let vehicles = [];
 
 /* ログイン */
 document.getElementById("loginBtn").addEventListener("click", login);
@@ -137,10 +133,31 @@ function login(){
 /* 画面切り替え */
 function showVehicles(){
 
-  document.getElementById("loginScreen").classList.remove("active");
-  document.getElementById("vehicleScreen").classList.add("active");
+  fetch(API_URL,{
+    method:"POST",
+    body:new URLSearchParams({action:"getVehicles"})
+  })
+  .then(res=>res.json())
+  .then(data=>{
 
-  renderVehicles();
+    if(data.success){
+
+      vehicles = data.vehicles;
+
+      document.getElementById("loginScreen").classList.remove("active");
+      document.getElementById("vehicleScreen").classList.add("active");
+
+      renderVehicles();
+
+    }else{
+      alert("車両取得失敗");
+    }
+
+  })
+  .catch(()=>{
+    alert("通信エラー");
+  });
+
 }
 
 /* 車両描画 */
@@ -181,6 +198,7 @@ function selectVehicle(name){
 
 </body>
 </html>
+
 
 
 
