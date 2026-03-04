@@ -175,7 +175,7 @@ function renderVehicles(){
       div.innerHTML = `
         <h3>${v.name}</h3>
         <div class="status-wait">●待機中</div>
-        <button onclick="selectVehicle('${v.name}')">運行する</button>
+        <button onclick="startRun('${v.name}')">運行する</button>
       `;
     }else{
       div.innerHTML = `
@@ -194,10 +194,43 @@ function selectVehicle(name){
   alert(name + " を選択しました（次で出発画面作ります）");
 }
 
+function startRun(vehicleName){
+
+  const driverName = prompt("運転者名を入力してください");
+
+  if(!driverName) return;
+
+  fetch(API_URL,{
+    method:"POST",
+    body:new URLSearchParams({
+      action:"startRun",
+      vehicle: vehicleName,
+      driver: driverName
+    })
+  })
+  .then(res=>res.json())
+  .then(data=>{
+
+    if(data.success){
+      alert("運行開始しました");
+      showVehicles();   // 再読み込み
+    }else{
+      alert("開始失敗");
+    }
+
+  })
+  .catch(()=>{
+    alert("通信エラー");
+  });
+
+}
+
+  
 </script>
 
 </body>
 </html>
+
 
 
 
