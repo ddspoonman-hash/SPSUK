@@ -114,16 +114,16 @@ function login(){
   .then(res => res.json())
   .then(data => {
 
-    btn.disabled = false;
-    btn.innerText = "ログイン";
+  btn.disabled = false;
+  btn.innerText = "ログイン";
 
-    if(data.success){
-      showVehicles();
-    }else{
-      alert("ログイン失敗");
-    }
+  if(data.status === "success"){
+    showVehicles();
+  }else{
+    alert("ログイン失敗");
+  }
 
-  })
+})
   .catch(()=>{
     btn.disabled = false;
     btn.innerText = "ログイン";
@@ -179,3 +179,4 @@ function selectVehicle(name){
 
 </body>
 </html>
+
