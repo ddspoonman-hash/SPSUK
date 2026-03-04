@@ -73,13 +73,12 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzqlyQIaksGLgOOxwktsqKZ
 
 function login(){
 
+  const btn = document.querySelector("button");
+  btn.disabled = true;
+  btn.innerText = "ログイン中...";
+
   const id = document.getElementById("loginId").value;
   const pass = document.getElementById("loginPass").value;
-
-  if(!id || !pass){
-    alert("入力してください");
-    return;
-  }
 
   const formData = new URLSearchParams();
   formData.append("action","login");
@@ -90,6 +89,38 @@ function login(){
     method:"POST",
     body:formData
   })
+  .then(res => res.json())
+  .then(data => {
+
+    btn.disabled = false;
+    btn.innerText = "ログイン";
+
+    if(data.success){
+      alert("ログイン成功");
+    }else{
+      alert("ログイン失敗");
+    }
+
+  })
+  .catch(err=>{
+    btn.disabled = false;
+    btn.innerText = "ログイン";
+    alert("通信エラー");
+  });
+
+}
+
+  const formData = new URLSearchParams();
+  formData.append("action","login");
+  formData.append("id",id);
+  formData.append("pass",pass);
+
+ fetch(API_URL, {
+  method: "POST",
+  body: formData,
+  mode: "cors",
+  credentials: "omit"
+})
   .then(res => res.json())
   .then(data => {
 
@@ -109,6 +140,7 @@ function login(){
 </script>
 </body>
 </html>
+
 
 
 
