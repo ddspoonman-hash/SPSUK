@@ -113,7 +113,7 @@ function login(){
   })
   .then(res => res.json())
   .then(data => {
-
+console.log(data);
   btn.disabled = false;
   btn.innerText = "ログイン";
 
@@ -179,4 +179,5 @@ function selectVehicle(name){
 
 </body>
 </html>
+
 
