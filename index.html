@@ -10,24 +10,34 @@ body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
   background:#f2f2f2;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
 }
 
-.container{
+.screen{
+  display:none;
+  padding:20px;
+}
+
+.active{
+  display:block;
+}
+
+.card{
   background:white;
-  padding:30px;
+  padding:20px;
   border-radius:20px;
-  width:90%;
-  max-width:400px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.1);
+  margin-bottom:15px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.08);
 }
 
-h2{
-  text-align:center;
-  margin-bottom:20px;
+button{
+  width:100%;
+  padding:18px;
+  border:none;
+  border-radius:15px;
+  background:#007aff;
+  color:white;
+  font-size:18px;
+  font-weight:bold;
 }
 
 input{
@@ -40,48 +50,47 @@ input{
   box-sizing:border-box;
 }
 
-button{
-  width:100%;
-  padding:15px;
-  border:none;
-  border-radius:12px;
-  background:#007aff;
-  color:white;
-  font-size:18px;
-  font-weight:bold;
-  cursor:pointer;
-}
+.status-wait{ color:green; font-weight:bold;}
+.status-run{ color:red; font-weight:bold;}
 
-button:disabled{
-  background:#999;
-}
-
-.footer{
-  text-align:center;
-  margin-top:15px;
-  font-size:12px;
-  color:#888;
-}
+h2{ margin-top:0; }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h2>ログイン</h2>
+<!-- ログイン画面 -->
+<div id="loginScreen" class="screen active">
 
-  <input type="text" id="loginId" placeholder="ID">
-  <input type="password" id="loginPass" placeholder="パスワード">
+  <div class="card">
+    <h2>ログイン</h2>
+    <input type="text" id="loginId" placeholder="ID">
+    <input type="password" id="loginPass" placeholder="パスワード">
+    <button id="loginBtn">ログイン</button>
+  </div>
 
-  <button id="loginBtn">ログイン</button>
+</div>
 
-  <div class="footer">SPSUK System</div>
+<!-- 車両一覧画面 -->
+<div id="vehicleScreen" class="screen">
+
+  <h2>🚗 車両一覧</h2>
+  <div id="vehicleList"></div>
+
 </div>
 
 <script>
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzqlyQIaksGLgOOxwktsqKZL6dkQbrPHAcWW8gP8kF2ahin_wNcorYAs99du1BtjhRXDA/exec";
 
+/* 仮データ（あとでGAS連携） */
+let vehicles = [
+  {name:"A号車", status:"wait"},
+  {name:"B号車", status:"run", driver:"田中"},
+  {name:"C号車", status:"wait"}
+];
+
+/* ログイン */
 document.getElementById("loginBtn").addEventListener("click", login);
 
 function login(){
@@ -109,19 +118,61 @@ function login(){
     btn.innerText = "ログイン";
 
     if(data.success){
-      alert("ログイン成功");
+      showVehicles();
     }else{
       alert("ログイン失敗");
     }
 
   })
-  .catch(err=>{
+  .catch(()=>{
     btn.disabled = false;
     btn.innerText = "ログイン";
     alert("通信エラー");
-    console.error(err);
   });
 
+}
+
+/* 画面切り替え */
+function showVehicles(){
+
+  document.getElementById("loginScreen").classList.remove("active");
+  document.getElementById("vehicleScreen").classList.add("active");
+
+  renderVehicles();
+}
+
+/* 車両描画 */
+function renderVehicles(){
+
+  const list = document.getElementById("vehicleList");
+  list.innerHTML = "";
+
+  vehicles.forEach(v=>{
+
+    const div = document.createElement("div");
+    div.className = "card";
+
+    if(v.status==="wait"){
+      div.innerHTML = `
+        <h3>${v.name}</h3>
+        <div class="status-wait">●待機中</div>
+        <button onclick="selectVehicle('${v.name}')">運行する</button>
+      `;
+    }else{
+      div.innerHTML = `
+        <h3>${v.name}</h3>
+        <div class="status-run">●運行中（${v.driver}）</div>
+        <button disabled>運行中</button>
+      `;
+    }
+
+    list.appendChild(div);
+  });
+
+}
+
+function selectVehicle(name){
+  alert(name + " を選択しました（次で出発画面作ります）");
 }
 
 </script>
