@@ -113,11 +113,13 @@ function login(){
   })
   .then(res => res.json())
   .then(data => {
-console.log(data);
+
+  console.log(data);
+
   btn.disabled = false;
   btn.innerText = "ログイン";
 
-  if(data.status === "success"){
+  if(data.success === true){
     showVehicles();
   }else{
     alert("ログイン失敗");
@@ -179,5 +181,6 @@ function selectVehicle(name){
 
 </body>
 </html>
+
 
 
