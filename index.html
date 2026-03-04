@@ -69,34 +69,47 @@ button:active{
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzqlyQIaksGLgOOxwktsqKZL6dkQbrPHAcWW8gP8kF2ahin_wNcorYAs99du1BtjhRXDA/exec";
+const API_URL = "https://script.google.com/macros/s/あなたのURL/exec";
 
-async function login(){
-  alert("ボタンは押されている");
-}
+function login(){
+
+  const id = document.getElementById("loginId").value;
+  const pass = document.getElementById("loginPass").value;
+
+  if(!id || !pass){
+    alert("入力してください");
+    return;
+  }
 
   const formData = new URLSearchParams();
   formData.append("action","login");
   formData.append("id",id);
   formData.append("pass",pass);
 
-  const res = await fetch(API_URL,{
+  fetch(API_URL,{
     method:"POST",
     body:formData
+  })
+  .then(res => res.json())
+  .then(data => {
+
+    if(data.success){
+      alert("ログイン成功");
+    }else{
+      alert("ログイン失敗");
+    }
+
+  })
+  .catch(err=>{
+    alert("通信エラー");
+    console.error(err);
   });
 
-  const data = await res.json();
-
-  if(data.success){
-    alert("ログイン成功");
-  }else{
-    alert("ログイン失敗");
-  }
 }
 </script>
-
 </body>
 </html>
+
 
 
 
