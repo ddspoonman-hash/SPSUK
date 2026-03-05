@@ -2,91 +2,94 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>運行管理</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
+<title>運行管理</title>
 <style>
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
-  margin:0;
-  background:#f4f6f9;
-}
-.header{
-  background:#1e88e5;
-  color:white;
-  padding:15px;
-  text-align:center;
-  font-size:18px;
-  font-weight:bold;
-}
-.container{
-  max-width:600px;
-  margin:20px auto;
-  padding:10px;
-}
-.card{
-  background:white;
-  padding:18px;
-  margin-bottom:15px;
-  border-radius:12px;
-  box-shadow:0 3px 10px rgba(0,0,0,0.08);
-}
-h3{margin:0 0 10px 0;}
-.status{
-  font-weight:bold;
-  margin-bottom:10px;
-}
-.wait{color:#2e7d32;}
-.run{color:#d32f2f;}
-button{
-  width:100%;
-  padding:12px;
-  border:none;
-  border-radius:8px;
-  font-size:15px;
-  font-weight:bold;
-}
-.btn-start{
-  background:#1e88e5;
-  color:white;
-}
-.btn-end{
-  background:#d32f2f;
-  color:white;
-}
-.footer{
-  text-align:center;
-  font-size:12px;
-  color:#888;
-  margin-top:20px;
-}
+body{font-family:sans-serif;background:#f4f6f9;margin:0}
+.header{background:#1e88e5;color:white;padding:15px;text-align:center}
+.container{max-width:500px;margin:30px auto;padding:15px}
+.card{background:white;padding:20px;border-radius:10px;margin-bottom:15px}
+input{width:100%;padding:10px;margin-bottom:10px}
+button{width:100%;padding:12px;font-weight:bold}
 </style>
 </head>
-
 <body>
 
 <div class="header">運行管理システム</div>
 
 <div class="container">
-  <div id="vehicleList"></div>
-  <div class="footer">自動更新中（5秒ごと）</div>
+
+<div id="loginScreen" class="card">
+<h3>ログイン</h3>
+<input id="userId" placeholder="ID">
+<input id="password" type="password" placeholder="パスワード">
+<button onclick="login()">ログイン</button>
+</div>
+
+<div id="mainScreen" style="display:none">
+<div id="vehicleList"></div>
+</div>
+
 </div>
 
 <script>
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzMk6xlXfaA_ptN2VAmcY7T0k-CrCkUztaFP1pkqdy4tfh2945bZfFcf0caGkVRmKbkQA/exec";
+let vehicles=[];
 
-let vehicles = [];
+// =================
+// ログイン保持チェック
+// =================
+window.onload=function(){
+  const token = localStorage.getItem("token");
+  const expires = localStorage.getItem("expires");
 
-/* ========================
-   初期ロード
-======================== */
-loadVehicles();
-setInterval(loadVehicles,5000);
+  if(token && Date.now() < expires){
+    showMain();
+  }
+};
 
-/* ========================
-   車両取得
-======================== */
+// =================
+// ログイン
+// =================
+function login(){
+
+  const id = document.getElementById("userId").value;
+  const pw = document.getElementById("password").value;
+
+  fetch(API_URL,{
+    method:"POST",
+    body:new URLSearchParams({
+      action:"login",
+      id:id,
+      pw:pw
+    })
+  })
+  .then(res=>res.json())
+  .then(data=>{
+    if(data.success){
+      localStorage.setItem("token",data.token);
+      localStorage.setItem("expires",data.expires);
+      showMain();
+    }else{
+      alert("ログイン失敗");
+    }
+  });
+}
+
+// =================
+// メイン表示
+// =================
+function showMain(){
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("mainScreen").style.display="block";
+  loadVehicles();
+  setInterval(loadVehicles,5000);
+}
+
+// =================
+// 車両取得
+// =================
 function loadVehicles(){
 
   fetch(API_URL,{
@@ -96,36 +99,35 @@ function loadVehicles(){
   .then(res=>res.json())
   .then(data=>{
     if(data.success){
-      vehicles = data.vehicles;
+      vehicles=data.vehicles;
       render();
     }
   });
 }
 
-/* ========================
-   描画
-======================== */
+// =================
+// 描画
+// =================
 function render(){
 
-  const list = document.getElementById("vehicleList");
-  list.innerHTML = "";
+  const list=document.getElementById("vehicleList");
+  list.innerHTML="";
 
   vehicles.forEach(v=>{
-
-    const div = document.createElement("div");
-    div.className = "card";
+    const div=document.createElement("div");
+    div.className="card";
 
     if(v.status==="run"){
-      div.innerHTML = `
+      div.innerHTML=`
         <h3>${v.name}</h3>
-        <div class="status run">●運行中（${v.driver}）</div>
-        <button class="btn-end" onclick="endRun('${v.name}')">到着</button>
+        <p>●運行中（${v.driver}）</p>
+        <button onclick="endRun('${v.name}')">到着</button>
       `;
     }else{
-      div.innerHTML = `
+      div.innerHTML=`
         <h3>${v.name}</h3>
-        <div class="status wait">●待機中</div>
-        <button class="btn-start" onclick="startRun('${v.name}')">運行する</button>
+        <p>●待機中</p>
+        <button onclick="startRun('${v.name}')">運行する</button>
       `;
     }
 
@@ -133,21 +135,13 @@ function render(){
   });
 }
 
-/* ========================
-   運行開始（即時反映）
-======================== */
+// =================
+// 運行開始
+// =================
 function startRun(vehicle){
+  const driver=prompt("運転者名");
+  if(!driver)return;
 
-  const driver = prompt("運転者名を入力");
-  if(!driver) return;
-
-  // ① 即画面変更（体感高速）
-  const v = vehicles.find(v=>v.name===vehicle);
-  v.status="run";
-  v.driver=driver;
-  render();
-
-  // ② サーバー更新
   fetch(API_URL,{
     method:"POST",
     body:new URLSearchParams({
@@ -155,30 +149,22 @@ function startRun(vehicle){
       vehicle:vehicle,
       driver:driver
     })
-  });
+  }).then(()=>loadVehicles());
 }
 
-/* ========================
-   運行終了
-======================== */
+// =================
+// 終了
+// =================
 function endRun(vehicle){
-
-  const v = vehicles.find(v=>v.name===vehicle);
-  v.status="wait";
-  v.driver="";
-  render();
-
   fetch(API_URL,{
     method:"POST",
     body:new URLSearchParams({
       action:"endRun",
       vehicle:vehicle
     })
-  });
+  }).then(()=>loadVehicles());
 }
 
 </script>
-
 </body>
 </html>
-
