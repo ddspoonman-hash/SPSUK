@@ -8,7 +8,7 @@
 
 body{
 font-family:sans-serif;
-background:#f5f5f5;
+background:#f0f2f5;
 margin:0;
 padding:20px;
 }
@@ -17,13 +17,13 @@ padding:20px;
 background:white;
 padding:20px;
 border-radius:12px;
-margin-bottom:20px;
+margin-bottom:15px;
 box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
 button{
 width:100%;
-padding:15px;
+padding:14px;
 font-size:16px;
 border:none;
 border-radius:8px;
@@ -58,6 +58,7 @@ color:red;
 <div id="loginPage">
 
 <div class="card">
+
 <h2>ログイン</h2>
 
 <input id="id" placeholder="ID">
@@ -84,13 +85,15 @@ color:red;
 const API="https://script.google.com/macros/s/AKfycbzn-slpKhdxBZv1vvQyZBPRwMmg26XKN1ol32L78UjVF4HuyzU8znQLjRRhYCLC4E3zsw/exec";
 
 let vehicles=[];
-let loading=false;
+let busy=false;
 
+
+// 起動時
 
 window.onload=()=>{
 
 const token=localStorage.getItem("token");
-const exp=localStorage.getItem("expires");
+const exp=localStorage.getItem("exp");
 
 if(token && Date.now()<exp){
 
@@ -99,8 +102,10 @@ loadVehicles();
 
 }
 
-}
+};
 
+
+// ログイン
 
 function login(){
 
@@ -121,7 +126,7 @@ pw:pw
 if(data.success){
 
 localStorage.setItem("token",data.token);
-localStorage.setItem("expires",data.expires);
+localStorage.setItem("exp",data.expires);
 
 showMain();
 loadVehicles();
@@ -137,6 +142,7 @@ alert("ログイン失敗");
 }
 
 
+// メイン画面
 
 function showMain(){
 
@@ -146,6 +152,7 @@ document.getElementById("mainPage").style.display="block";
 }
 
 
+// 車両取得
 
 function loadVehicles(){
 
@@ -159,15 +166,16 @@ action:"getVehicles"
 .then(data=>{
 
 vehicles=data.vehicles;
-renderVehicles();
+render();
 
 });
 
 }
 
 
+// 描画
 
-function renderVehicles(){
+function render(){
 
 const list=document.getElementById("vehicleList");
 list.innerHTML="";
@@ -202,16 +210,17 @@ list.appendChild(div);
 }
 
 
+// 運行開始
 
 function startRun(vehicle){
 
-if(loading)return;
+if(busy)return;
 
 const driver=prompt("運転者名");
 
 if(!driver)return;
 
-loading=true;
+busy=true;
 
 fetch(API,{
 method:"POST",
@@ -224,7 +233,7 @@ driver:driver
 .then(r=>r.json())
 .then(()=>{
 
-loading=false;
+busy=false;
 loadVehicles();
 
 });
@@ -232,12 +241,13 @@ loadVehicles();
 }
 
 
+// 到着
 
 function endRun(vehicle){
 
-if(loading)return;
+if(busy)return;
 
-loading=true;
+busy=true;
 
 fetch(API,{
 method:"POST",
@@ -249,7 +259,7 @@ vehicle:vehicle
 .then(r=>r.json())
 .then(()=>{
 
-loading=false;
+busy=false;
 loadVehicles();
 
 });
