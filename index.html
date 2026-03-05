@@ -2,171 +2,261 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>運行管理</title>
+<title>車両管理</title>
+
 <style>
-body{font-family:sans-serif;background:#f4f6f9;margin:0}
-.header{background:#1e88e5;color:white;padding:15px;text-align:center}
-.container{max-width:500px;margin:30px auto;padding:15px}
-.card{background:white;padding:20px;border-radius:10px;margin-bottom:15px}
-input{width:100%;padding:10px;margin-bottom:10px}
-button{width:100%;padding:12px;font-weight:bold}
+
+body{
+font-family:sans-serif;
+background:#f5f5f5;
+margin:0;
+padding:20px;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:12px;
+margin-bottom:20px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+button{
+width:100%;
+padding:15px;
+font-size:16px;
+border:none;
+border-radius:8px;
+background:#1976d2;
+color:white;
+}
+
+button:disabled{
+background:#999;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-bottom:10px;
+font-size:16px;
+}
+
+.status-wait{
+color:green;
+}
+
+.status-run{
+color:red;
+}
+
 </style>
+
 </head>
 <body>
 
-<div class="header">運行管理システム</div>
+<div id="loginPage">
 
-<div class="container">
+<div class="card">
+<h2>ログイン</h2>
 
-<div id="loginScreen" class="card">
-<h3>ログイン</h3>
-<input id="userId" placeholder="ID">
-<input id="password" type="password" placeholder="パスワード">
+<input id="id" placeholder="ID">
+<input id="pw" type="password" placeholder="パスワード">
+
 <button onclick="login()">ログイン</button>
+
 </div>
 
-<div id="mainScreen" style="display:none">
+</div>
+
+
+<div id="mainPage" style="display:none">
+
+<h2>🚗 車両一覧</h2>
+
 <div id="vehicleList"></div>
-</div>
 
 </div>
+
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzn-slpKhdxBZv1vvQyZBPRwMmg26XKN1ol32L78UjVF4HuyzU8znQLjRRhYCLC4E3zsw/exec";
+const API="https://script.google.com/macros/s/AKfycbzn-slpKhdxBZv1vvQyZBPRwMmg26XKN1ol32L78UjVF4HuyzU8znQLjRRhYCLC4E3zsw/exec";
+
 let vehicles=[];
+let loading=false;
 
-// =================
-// ログイン保持チェック
-// =================
-window.onload=function(){
-  const token = localStorage.getItem("token");
-  const expires = localStorage.getItem("expires");
 
-  if(token && Date.now() < expires){
-    showMain();
-  }
-};
+window.onload=()=>{
 
-// =================
-// ログイン
-// =================
+const token=localStorage.getItem("token");
+const exp=localStorage.getItem("expires");
+
+if(token && Date.now()<exp){
+
+showMain();
+loadVehicles();
+
+}
+
+}
+
+
 function login(){
 
-  const id = document.getElementById("userId").value;
-  const pw = document.getElementById("password").value;
+const id=document.getElementById("id").value;
+const pw=document.getElementById("pw").value;
 
-  fetch(API_URL,{
-    method:"POST",
-    body:new URLSearchParams({
-      action:"login",
-      id:id,
-      pw:pw
-    })
-  })
-  .then(res=>res.json())
-  .then(data=>{
-    if(data.success){
-      localStorage.setItem("token",data.token);
-      localStorage.setItem("expires",data.expires);
-      showMain();
-    }else{
-      alert("ログイン失敗");
-    }
-  });
+fetch(API,{
+method:"POST",
+body:new URLSearchParams({
+action:"login",
+id:id,
+pw:pw
+})
+})
+.then(r=>r.json())
+.then(data=>{
+
+if(data.success){
+
+localStorage.setItem("token",data.token);
+localStorage.setItem("expires",data.expires);
+
+showMain();
+loadVehicles();
+
+}else{
+
+alert("ログイン失敗");
+
 }
 
-// =================
-// メイン表示
-// =================
+});
+
+}
+
+
+
 function showMain(){
-  document.getElementById("loginScreen").style.display="none";
-  document.getElementById("mainScreen").style.display="block";
-  loadVehicles();
-  setInterval(loadVehicles,5000);
+
+document.getElementById("loginPage").style.display="none";
+document.getElementById("mainPage").style.display="block";
+
 }
 
-// =================
-// 車両取得
-// =================
+
+
 function loadVehicles(){
 
-  fetch(API_URL,{
-    method:"POST",
-    body:new URLSearchParams({action:"getVehicles"})
-  })
-  .then(res=>res.json())
-  .then(data=>{
-    if(data.success){
-      vehicles=data.vehicles;
-      render();
-    }
-  });
+fetch(API,{
+method:"POST",
+body:new URLSearchParams({
+action:"getVehicles"
+})
+})
+.then(r=>r.json())
+.then(data=>{
+
+vehicles=data.vehicles;
+renderVehicles();
+
+});
+
 }
 
-// =================
-// 描画
-// =================
-function render(){
 
-  const list=document.getElementById("vehicleList");
-  list.innerHTML="";
 
-  vehicles.forEach(v=>{
-    const div=document.createElement("div");
-    div.className="card";
+function renderVehicles(){
 
-    if(v.status==="run"){
-      div.innerHTML=`
-        <h3>${v.name}</h3>
-        <p>●運行中（${v.driver}）</p>
-        <button onclick="endRun('${v.name}')">到着</button>
-      `;
-    }else{
-      div.innerHTML=`
-        <h3>${v.name}</h3>
-        <p>●待機中</p>
-        <button onclick="startRun('${v.name}')">運行する</button>
-      `;
-    }
+const list=document.getElementById("vehicleList");
+list.innerHTML="";
 
-    list.appendChild(div);
-  });
+vehicles.forEach(v=>{
+
+const div=document.createElement("div");
+div.className="card";
+
+if(v.status==="run"){
+
+div.innerHTML=`
+<h3>${v.name}</h3>
+<div class="status-run">●運行中 (${v.driver})</div>
+<button onclick="endRun('${v.name}')">到着</button>
+`;
+
+}else{
+
+div.innerHTML=`
+<h3>${v.name}</h3>
+<div class="status-wait">●待機中</div>
+<button onclick="startRun('${v.name}')">運行する</button>
+`;
+
 }
 
-// =================
-// 運行開始
-// =================
+list.appendChild(div);
+
+});
+
+}
+
+
+
 function startRun(vehicle){
-  const driver=prompt("運転者名");
-  if(!driver)return;
 
-  fetch(API_URL,{
-    method:"POST",
-    body:new URLSearchParams({
-      action:"startRun",
-      vehicle:vehicle,
-      driver:driver
-    })
-  }).then(()=>loadVehicles());
+if(loading)return;
+
+const driver=prompt("運転者名");
+
+if(!driver)return;
+
+loading=true;
+
+fetch(API,{
+method:"POST",
+body:new URLSearchParams({
+action:"startRun",
+vehicle:vehicle,
+driver:driver
+})
+})
+.then(r=>r.json())
+.then(()=>{
+
+loading=false;
+loadVehicles();
+
+});
+
 }
 
-// =================
-// 終了
-// =================
+
+
 function endRun(vehicle){
-  fetch(API_URL,{
-    method:"POST",
-    body:new URLSearchParams({
-      action:"endRun",
-      vehicle:vehicle
-    })
-  }).then(()=>loadVehicles());
+
+if(loading)return;
+
+loading=true;
+
+fetch(API,{
+method:"POST",
+body:new URLSearchParams({
+action:"endRun",
+vehicle:vehicle
+})
+})
+.then(r=>r.json())
+.then(()=>{
+
+loading=false;
+loadVehicles();
+
+});
+
 }
 
 </script>
+
 </body>
 </html>
-
-
