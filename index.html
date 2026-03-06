@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>車両管理</title>
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
 
 body{
 font-family:sans-serif;
-background:#f5f5f5;
+background:#f2f2f2;
 margin:0;
 padding:20px;
 }
@@ -17,13 +17,13 @@ padding:20px;
 background:white;
 padding:20px;
 border-radius:12px;
-margin-bottom:20px;
+margin-bottom:15px;
 box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
 button{
 width:100%;
-padding:15px;
+padding:14px;
 font-size:16px;
 border:none;
 border-radius:8px;
@@ -33,32 +33,38 @@ color:white;
 
 .small{
 width:auto;
-padding:8px 14px;
-font-size:14px;
+padding:8px 12px;
+font-size:12px;
+}
+
+.status-wait{
+color:green;
+}
+
+.status-run{
+color:red;
 }
 
 input,select{
 width:100%;
 padding:12px;
 margin-bottom:10px;
-font-size:16px;
 }
-
-.status-wait{color:green;}
-.status-run{color:red;}
 
 </style>
 
 </head>
+
 <body>
 
 <div id="loginPage">
 
 <div class="card">
-<h2>ログイン</h2>
+
+<h2>SP車両運行管理</h2>
 
 <input id="id" placeholder="ID">
-<input id="pw" type="password" placeholder="パスワード">
+<input id="pw" type="password" placeholder="PW">
 
 <button onclick="login()">ログイン</button>
 
@@ -66,31 +72,27 @@ font-size:16px;
 
 </div>
 
-
 <div id="mainPage" style="display:none">
 
 <button class="small" onclick="logout()">ログアウト</button>
 
-<h2>🚗 車両一覧</h2>
+<h2>車両一覧</h2>
 
 <div id="vehicleList"></div>
 
 </div>
 
-
 <script>
 
-const API="https://script.google.com/macros/s/AKfycbzn-slpKhdxBZv1vvQyZBPRwMmg26XKN1ol32L78UjVF4HuyzU8znQLjRRhYCLC4E3zsw/exec";
+const API="https://script.google.com/macros/s/AKfycby0mI6eAWwNHb6Ufo6bUpxH8_8CBrFEcMdYB_2C5p7qTGQSf06S7fR_iNWXizIl6399/exec";
 
 let user="";
 let vehicles=[];
-let startLat;
-let startLng;
 
 function login(){
 
-const id=idEl().value;
-const pw=pwEl().value;
+const id=document.getElementById("id").value;
+const pw=document.getElementById("pw").value;
 
 fetch(API+"?action=login&id="+id+"&pw="+pw)
 .then(r=>r.json())
@@ -100,9 +102,10 @@ if(d.success){
 
 user=d.name;
 
-localStorage.setItem("user",user);
+document.getElementById("loginPage").style.display="none";
+document.getElementById("mainPage").style.display="block";
 
-showMain();
+loadVehicles();
 
 }else{
 
@@ -116,17 +119,7 @@ alert("ログイン失敗");
 
 function logout(){
 
-localStorage.clear();
 location.reload();
-
-}
-
-function showMain(){
-
-document.getElementById("loginPage").style.display="none";
-document.getElementById("mainPage").style.display="block";
-
-loadVehicles();
 
 }
 
@@ -147,29 +140,28 @@ render();
 function render(){
 
 const list=document.getElementById("vehicleList");
+
 list.innerHTML="";
 
 vehicles.forEach(v=>{
 
-const div=document.createElement("div");
+let div=document.createElement("div");
 div.className="card";
 
-if(v.status==="run"){
+if(v.status=="run"){
 
-div.innerHTML=
-`
+div.innerHTML=`
 <h3>${v.name}</h3>
 <div class="status-run">運行中 (${v.driver})</div>
-<button onclick="endRun('${v.name}')">到着</button>
+<button onclick="end('${v.name}')">到着</button>
 `;
 
 }else{
 
-div.innerHTML=
-`
+div.innerHTML=`
 <h3>${v.name}</h3>
-<div class="status-wait">待機</div>
-<button onclick="startRun('${v.name}')">運行する</button>
+<div class="status-wait">待機中</div>
+<button onclick="start('${v.name}')">出発</button>
 `;
 
 }
@@ -180,68 +172,32 @@ list.appendChild(div);
 
 }
 
-function startRun(vehicle){
-
-navigator.geolocation.getCurrentPosition(pos=>{
-
-startLat=pos.coords.latitude;
-startLng=pos.coords.longitude;
+function start(vehicle){
 
 fetch(API+"?action=start&vehicle="+vehicle+"&driver="+user)
 .then(()=>loadVehicles());
 
-});
-
 }
 
-function endRun(vehicle){
+function end(vehicle){
 
-navigator.geolocation.getCurrentPosition(pos=>{
+let destination=prompt("行き先");
+let purpose=prompt("用件");
+let passengers=prompt("同乗者");
+let note=prompt("備考");
 
-const lat=pos.coords.latitude;
-const lng=pos.coords.longitude;
-
-const distance=calc(startLat,startLng,lat,lng);
-
-const passenger=prompt("同乗者");
-const dest=prompt("行き先");
-const purpose=prompt("用件");
-const memo=prompt("備考");
-
-fetch(API+"?action=end&vehicle="+vehicle+
+fetch(API+
+"?action=end"+
+"&vehicle="+vehicle+
 "&driver="+user+
-"&passenger="+passenger+
-"&dest="+dest+
+"&destination="+destination+
 "&purpose="+purpose+
-"&memo="+memo+
-"&distance="+distance)
-
+"&passengers="+passengers+
+"&note="+note
+)
 .then(()=>loadVehicles());
 
-});
-
 }
-
-function calc(lat1,lng1,lat2,lng2){
-
-const R=6371;
-
-const dLat=(lat2-lat1)*Math.PI/180;
-const dLng=(lng2-lng1)*Math.PI/180;
-
-const a=
-Math.sin(dLat/2)*Math.sin(dLat/2)+
-Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
-Math.sin(dLng/2)*Math.sin(dLng/2);
-
-const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-
-return Math.round(R*c);
-
-}
-
-function idEl(){return document.getElementById("id")}
-function pwEl(){return document.getElementById("pw")}
 
 </script>
 
