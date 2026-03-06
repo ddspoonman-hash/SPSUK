@@ -24,21 +24,40 @@ box-shadow:0 2px 6px rgba(0,0,0,0.1);
 button{
 width:100%;
 padding:15px;
-font-size:18px;
+font-size:16px;
 border:none;
 border-radius:8px;
 background:#1976d2;
 color:white;
 }
 
-.status-wait{color:green;}
-.status-run{color:red;}
+button:disabled{
+background:#999;
+}
 
-input,select{
+input{
 width:100%;
 padding:12px;
 margin-bottom:10px;
 font-size:16px;
+}
+
+.status-wait{
+color:green;
+}
+
+.status-run{
+color:red;
+}
+
+.topbar{
+display:flex;
+justify-content:space-between;
+margin-bottom:20px;
+}
+
+.logout{
+background:#e53935;
 }
 
 </style>
@@ -46,10 +65,9 @@ font-size:16px;
 </head>
 <body>
 
-<div id="login">
+<div id="loginPage">
 
 <div class="card">
-
 <h2>ログイン</h2>
 
 <input id="id" placeholder="ID">
@@ -62,11 +80,12 @@ font-size:16px;
 </div>
 
 
-<div id="main" style="display:none">
+<div id="mainPage" style="display:none">
 
+<div class="topbar">
 <h2>🚗 車両一覧</h2>
-
-<button onclick="logout()">ログアウト</button>
+<button class="logout" onclick="logout()">ログアウト</button>
+</div>
 
 <div id="vehicleList"></div>
 
@@ -78,43 +97,35 @@ font-size:16px;
 const API="https://script.google.com/macros/s/AKfycbzn-slpKhdxBZv1vvQyZBPRwMmg26XKN1ol32L78UjVF4HuyzU8znQLjRRhYCLC4E3zsw/exec";
 
 let vehicles=[];
-let drivers=[];
+let loading=false;
 
 window.onload=()=>{
 
-const exp=localStorage.getItem("exp");
+const token=localStorage.getItem("token");
+const exp=localStorage.getItem("expires");
 
-if(exp && Date.now()<exp){
-
+if(token && Date.now()<exp){
 showMain();
-loadDrivers();
 loadVehicles();
-
 }
 
 }
 
-//ログイン
 function login(){
 
-fetch(API,{
-method:"POST",
-body:new URLSearchParams({
-action:"login",
-id:document.getElementById("id").value,
-pw:document.getElementById("pw").value
-})
-})
+const id=document.getElementById("id").value;
+const pw=document.getElementById("pw").value;
+
+fetch(API+"?action=login&id="+id+"&pw="+pw)
 .then(r=>r.json())
-.then(d=>{
+.then(data=>{
 
-if(d.success){
+if(data.success){
 
-localStorage.setItem("exp",d.expires);
+localStorage.setItem("token",data.token);
+localStorage.setItem("expires",data.expires);
 
 showMain();
-
-loadDrivers();
 loadVehicles();
 
 }else{
@@ -127,7 +138,6 @@ alert("ログイン失敗");
 
 }
 
-//ログアウト
 function logout(){
 
 localStorage.clear();
@@ -135,59 +145,34 @@ location.reload();
 
 }
 
-//メイン表示
 function showMain(){
 
-document.getElementById("login").style.display="none";
-document.getElementById("main").style.display="block";
+document.getElementById("loginPage").style.display="none";
+document.getElementById("mainPage").style.display="block";
 
 }
 
-//ドライバー取得
-function loadDrivers(){
-
-fetch(API,{
-method:"POST",
-body:new URLSearchParams({action:"getDrivers"})
-})
-.then(r=>r.json())
-.then(d=>{
-
-drivers=d.list;
-
-});
-
-}
-
-//車両取得
 function loadVehicles(){
 
-fetch(API,{
-method:"POST",
-body:new URLSearchParams({action:"getVehicles"})
-})
+fetch(API+"?action=getVehicles")
 .then(r=>r.json())
-.then(d=>{
+.then(data=>{
 
-vehicles=d.vehicles;
-
-render();
+vehicles=data.vehicles;
+renderVehicles();
 
 });
 
 }
 
-//表示
-function render(){
+function renderVehicles(){
 
 const list=document.getElementById("vehicleList");
-
 list.innerHTML="";
 
 vehicles.forEach(v=>{
 
 const div=document.createElement("div");
-
 div.className="card";
 
 if(v.status==="run"){
@@ -195,7 +180,7 @@ if(v.status==="run"){
 div.innerHTML=`
 <h3>${v.name}</h3>
 <div class="status-run">●運行中 (${v.driver})</div>
-<button onclick="end('${v.name}')">到着</button>
+<button onclick="endRun('${v.name}')">到着</button>
 `;
 
 }else{
@@ -203,7 +188,7 @@ div.innerHTML=`
 div.innerHTML=`
 <h3>${v.name}</h3>
 <div class="status-wait">●待機中</div>
-<button onclick="start('${v.name}')">運行する</button>
+<button onclick="startRun('${v.name}')">運行する</button>
 `;
 
 }
@@ -214,40 +199,41 @@ list.appendChild(div);
 
 }
 
-//出発
-function start(vehicle){
+function startRun(vehicle){
 
-let dept=prompt("所属 (営業/総務/管理)");
+if(loading)return;
 
-if(!dept)return;
-
-let list=drivers.filter(d=>d.dept===dept).map(d=>d.name);
-
-let driver=prompt("運転者\n"+list.join("\n"));
+const driver=prompt("運転者名");
 
 if(!driver)return;
 
-fetch(API,{
-method:"POST",
-mode:"no-cors",
-body:new URLSearchParams({
-action:"login",
-id:id,
-pw:pw
-})
-})
+loading=true;
 
-//到着
-function end(vehicle){
+fetch(API+"?action=startRun&vehicle="+vehicle+"&driver="+driver)
+.then(r=>r.json())
+.then(()=>{
 
-fetch(API,{
-method:"POST",
-body:new URLSearchParams({
-action:"end",
-vehicle:vehicle
-})
-})
-.then(()=>loadVehicles());
+loading=false;
+loadVehicles();
+
+});
+
+}
+
+function endRun(vehicle){
+
+if(loading)return;
+
+loading=true;
+
+fetch(API+"?action=endRun&vehicle="+vehicle)
+.then(r=>r.json())
+.then(()=>{
+
+loading=false;
+loadVehicles();
+
+});
 
 }
 
@@ -255,5 +241,3 @@ vehicle:vehicle
 
 </body>
 </html>
-
-
