@@ -13,6 +13,21 @@ margin:0;
 padding:20px;
 }
 
+.header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:20px;
+}
+
+.logout{
+background:#e53935;
+padding:8px 14px;
+font-size:14px;
+border-radius:6px;
+width:auto;
+}
+
 .card{
 background:white;
 padding:20px;
@@ -31,40 +46,21 @@ background:#1976d2;
 color:white;
 }
 
-button:disabled{
-background:#999;
-}
-
-input{
+input,select{
 width:100%;
 padding:12px;
 margin-bottom:10px;
 font-size:16px;
 }
 
-.status-wait{
-color:green;
-}
-
-.status-run{
-color:red;
-}
-
-.topbar{
-display:flex;
-justify-content:space-between;
-margin-bottom:20px;
-}
-
-.logout{
-background:#e53935;
-}
+.status-wait{color:green;}
+.status-run{color:red;}
 
 </style>
-
 </head>
 <body>
 
+<!-- ログイン画面 -->
 <div id="loginPage">
 
 <div class="card">
@@ -80,9 +76,10 @@ background:#e53935;
 </div>
 
 
+<!-- メイン画面 -->
 <div id="mainPage" style="display:none">
 
-<div class="topbar">
+<div class="header">
 <h2>🚗 車両一覧</h2>
 <button class="logout" onclick="logout()">ログアウト</button>
 </div>
@@ -105,8 +102,10 @@ const token=localStorage.getItem("token");
 const exp=localStorage.getItem("expires");
 
 if(token && Date.now()<exp){
+
 showMain();
 loadVehicles();
+
 }
 
 }
@@ -204,12 +203,21 @@ function startRun(vehicle){
 if(loading)return;
 
 const driver=prompt("運転者名");
+const passenger=prompt("同乗者");
+const destination=prompt("行き先");
+const purpose=prompt("用件");
 
 if(!driver)return;
 
 loading=true;
 
-fetch(API+"?action=startRun&vehicle="+vehicle+"&driver="+driver)
+fetch(API+
+"?action=startRun"+
+"&vehicle="+vehicle+
+"&driver="+driver+
+"&passenger="+passenger+
+"&destination="+destination+
+"&purpose="+purpose)
 .then(r=>r.json())
 .then(()=>{
 
