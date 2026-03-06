@@ -229,15 +229,13 @@ if(!driver)return;
 
 fetch(API,{
 method:"POST",
+mode:"no-cors",
 body:new URLSearchParams({
-action:"start",
-vehicle:vehicle,
-driver:driver
+action:"login",
+id:id,
+pw:pw
 })
 })
-.then(()=>loadVehicles());
-
-}
 
 //到着
 function end(vehicle){
@@ -257,4 +255,5 @@ vehicle:vehicle
 
 </body>
 </html>
+
 
