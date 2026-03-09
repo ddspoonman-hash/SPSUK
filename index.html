@@ -8,17 +8,16 @@
 
 body{
 font-family:sans-serif;
-background:#f2f2f2;
-margin:0;
+background:#f4f4f4;
 padding:20px;
 }
 
 .card{
 background:white;
-padding:20px;
+padding:18px;
 border-radius:12px;
 margin-bottom:15px;
-box-shadow:0 2px 6px rgba(0,0,0,0.1);
+box-shadow:0 3px 8px rgba(0,0,0,0.1);
 }
 
 button{
@@ -31,19 +30,8 @@ background:#1976d2;
 color:white;
 }
 
-.small{
-width:auto;
-padding:8px 12px;
-font-size:12px;
-}
-
-.status-wait{
-color:green;
-}
-
-.status-run{
-color:red;
-}
+.status-wait{color:green}
+.status-run{color:red}
 
 input,select{
 width:100%;
@@ -57,7 +45,7 @@ margin-bottom:10px;
 
 <body>
 
-<div id="loginPage">
+<div id="login">
 
 <div class="card">
 
@@ -72,13 +60,11 @@ margin-bottom:10px;
 
 </div>
 
-<div id="mainPage" style="display:none">
-
-<button class="small" onclick="logout()">ログアウト</button>
+<div id="main" style="display:none">
 
 <h2>車両一覧</h2>
 
-<div id="vehicleList"></div>
+<div id="list"></div>
 
 </div>
 
@@ -91,70 +77,63 @@ let vehicles=[];
 
 function login(){
 
-const id=document.getElementById("id").value;
-const pw=document.getElementById("pw").value;
+let id=document.getElementById("id").value
+let pw=document.getElementById("pw").value
 
 fetch(API+"?action=login&id="+id+"&pw="+pw)
 .then(r=>r.json())
 .then(d=>{
 
-if(d.success){
+if(!d.success){
 
-user=d.name;
-
-document.getElementById("loginPage").style.display="none";
-document.getElementById("mainPage").style.display="block";
-
-loadVehicles();
-
-}else{
-
-alert("ログイン失敗");
+alert("ログイン失敗")
+return
 
 }
 
-});
+user=d.name
+
+document.getElementById("login").style.display="none"
+document.getElementById("main").style.display="block"
+
+load()
+
+})
 
 }
 
-function logout(){
-
-location.reload();
-
-}
-
-function loadVehicles(){
+function load(){
 
 fetch(API+"?action=vehicles")
 .then(r=>r.json())
 .then(d=>{
 
-vehicles=d.vehicles;
+vehicles=d.vehicles
 
-render();
+render()
 
-});
+})
 
 }
 
 function render(){
 
-const list=document.getElementById("vehicleList");
+const list=document.getElementById("list")
 
-list.innerHTML="";
+list.innerHTML=""
 
 vehicles.forEach(v=>{
 
-let div=document.createElement("div");
-div.className="card";
+let div=document.createElement("div")
+div.className="card"
 
 if(v.status=="run"){
 
 div.innerHTML=`
 <h3>${v.name}</h3>
-<div class="status-run">運行中 (${v.driver})</div>
-<button onclick="end('${v.name}')">到着</button>
-`;
+<div class="status-run">運行中 ${v.driver}</div>
+<button onclick="arrive('${v.name}')">到着</button>
+`
 
 }else{
 
@@ -162,29 +141,29 @@ div.innerHTML=`
 <h3>${v.name}</h3>
 <div class="status-wait">待機中</div>
 <button onclick="start('${v.name}')">出発</button>
-`;
+`
 
 }
 
-list.appendChild(div);
+list.appendChild(div)
 
-});
+})
 
 }
 
 function start(vehicle){
 
 fetch(API+"?action=start&vehicle="+vehicle+"&driver="+user)
-.then(()=>loadVehicles());
+.then(()=>load())
 
 }
 
-function end(vehicle){
+function arrive(vehicle){
 
-let destination=prompt("行き先");
-let purpose=prompt("用件");
-let passengers=prompt("同乗者");
-let note=prompt("備考");
+let destination=prompt("行き先")
+let purpose=prompt("用件")
+let passengers=prompt("同乗者")
+let note=prompt("備考")
 
 fetch(API+
 "?action=end"+
@@ -195,7 +174,7 @@ fetch(API+
 "&passengers="+passengers+
 "&note="+note
 )
-.then(()=>loadVehicles());
+.then(()=>load())
 
 }
 
